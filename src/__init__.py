@@ -8,6 +8,7 @@ from flask_jwt_extended import JWTManager
 from datetime import datetime, timedelta
 from src.constants.http_status_codes import (
     HTTP_404_NOT_FOUND,
+    HTTP_401_UNAUTHORIZED,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
 
@@ -33,7 +34,23 @@ def create_app(test_config=None):
     db.app = app
     db.init_app(app)
 
-    JWTManager(app)
+    jwt = JWTManager(app)
+
+    # Set a callback function to return a custom response whenever an expired
+    # token attempts to access a protected route. This particular callback function
+    # takes the jwt_header and jwt_payload as arguments, and must return a Flask
+    # response. Check the API documentation to see the required argument and return
+    # values for other callback functions.
+    @jwt.expired_token_loader
+    def my_expired_token_callback(jwt_header, jwt_payload):
+        return (
+            jsonify(status="true", message="Token has been expired "),
+            HTTP_401_UNAUTHORIZED,
+        )
+
+    @jwt.invalid_token_loader
+    def my_failed_token_callback(jwt_header):
+        return jsonify(status="true", message="Invalid Token"), HTTP_401_UNAUTHORIZED
 
     app.register_blueprint(auth)
     app.register_blueprint(bookmarks)
